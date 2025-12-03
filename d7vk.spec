@@ -1,0 +1,115 @@
+# We can't extract debuginfo from Windows binaries
+%undefine _debugsource_packages
+
+Name:		d7vk
+Version:	0.5
+Release:  1
+Summary:	Vulkan-based implementation of D3D7 for Linux / Wine, spun off from DXVK. 
+License:	zlib-acknowledgement
+Group:		System/Emulators/PC
+URL:		https://github.com/WinterSnowfall/d7vk
+Source0:	https://github.com/WinterSnowfall/d7vk/archive/refs/tags/v%{version}/%{name}-%{version}.tar.gz
+Source1:	https://gitlab.freedesktop.org/frog/libdisplay-info/-/archive/windows/libdisplay-info-windows.tar.bz2
+
+BuildRequires:  cmake
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  glslang-devel
+BuildRequires:  meson
+BuildRequires:  ninja
+BuildRequires:  pkgconfig
+BuildRequires:  (wine or proton or proton-experimental or proton-bleeding-edge)
+BuildRequires:  xz
+BuildRequires:  pkgconfig(glfw3)
+BuildRequires:  pkgconfig(libdisplay-info)
+BuildRequires:  pkgconfig(sdl2)
+BuildRequires:	vulkan-headers
+BuildRequires:	spirv-headers
+BuildRequires:	glslang
+
+BuildRequires:	cross-x86_64-w64-mingw32-binutils
+BuildRequires:	cross-x86_64-w64-mingw32-gcc
+BuildRequires:	cross-x86_64-w64-mingw32-libc
+BuildRequires:  cross-i686-w64-mingw32-binutils
+BuildRequires:  cross-i686-w64-mingw32-gcc
+BuildRequires:  cross-i686-w64-mingw32-libc
+
+# Loaded at runtime
+Requires:       libSDL2-2.0.so.0()(64bit)
+# Required if the 32-bit DLL is used, thankfully 32-bit is getting rare
+Recommends:     libSDL2-2.0.so.0
+
+BuildArch:	noarch
+
+Provides:	direct3d-implementation
+Requires:	(wine or proton or proton-experimental or proton-bleeding-edge)
+Supplements:	wine
+Supplements:	proton
+Supplements:	proton-experimental
+
+%patchlist
+
+%description
+A Vulkan-based translation layer for Direct3D 7, which allows running 3D applications on Linux using Wine. 
+It uses DXVK's D3D9 backend as well as Wine's DDraw implementation (or the windows native DDraw) and acts as a proxy between the two, providing a minimal D3D7-on-D3D9 implementation.
+
+%prep
+%autosetup -p1
+# eat up your libdisplay-info!
+sed -i '/library=static/d' meson.build
+
+# Upstream, vulkan-headers and spirv-headers are pulled in as
+# git submodules. Let's copy in system headers to make sure the
+# versions match
+mkdir -p include/vulkan/include
+cp -a %{_includedir}/vulkan %{_includedir}/vk_video include/vulkan/include
+mkdir -p include/spirv/include
+cp -a %{_includedir}/spirv include/spirv/include
+# We can skip mingw-directx-headers because our mingw has them - so system
+# headers will be found
+cd subprojects
+rmdir libdisplay-info
+tar xf %{S:1}
+mv libdisplay-info-* libdisplay-info
+
+%conf
+mkdir ../build
+meson setup \
+    -Denable_d3d7=true \
+    --cross-file build-win64.txt \
+    --strip \
+    --buildtype "release" \
+    --unity off \
+    --prefix /%{name} \
+    ../build
+
+mkdir ../build32
+meson setup \
+    -Denable_d3d7=true \
+    --cross-file build-win32.txt \
+    --strip \
+    --buildtype "release" \
+    --unity off \
+    --prefix /%{name} \
+    ../build32
+
+%build
+%ninja_build -C ../build
+%ninja_build -C ../build32
+
+%install
+install -vD -m 0644 dxvk.conf %{buildroot}%{_sysconfdir}/dxvk.conf
+
+mkdir -p %{buildroot}%{_libdir}/wine/x86_64-windows/
+mv ../build/src/*/*.dll %{buildroot}%{_libdir}/wine/x86_64-windows/
+
+mkdir -p %{buildroot}%{_prefix}/lib/wine/i386-windows/
+mv ../build32/src/*/*.dll %{buildroot}%{_prefix}/lib/wine/i386-windows/
+
+%files
+%defattr(-,root,root)
+%doc README.md
+%license LICENSE
+%config %{_sysconfdir}/dxvk.conf
+%{_libdir}/wine/x86_64-windows/*.dll
+%{_prefix}/lib/wine/i386-windows/*.dll
