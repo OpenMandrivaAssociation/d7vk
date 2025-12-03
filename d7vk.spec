@@ -10,6 +10,7 @@ Group:		System/Emulators/PC
 URL:		https://github.com/WinterSnowfall/d7vk
 Source0:	https://github.com/WinterSnowfall/d7vk/archive/refs/tags/v%{version}/%{name}-%{version}.tar.gz
 Source1:	https://gitlab.freedesktop.org/frog/libdisplay-info/-/archive/windows/libdisplay-info-windows.tar.bz2
+Source2:    https://github.com/doitsujin/dxbc-spirv/archive/dxbc-spirv-8f84fdcf12e038a43af40cc06af8f7e90d4b8973.tar.gz
 
 BuildRequires:  cmake
 BuildRequires:  gcc
@@ -71,6 +72,9 @@ cd subprojects
 rmdir libdisplay-info
 tar xf %{S:1}
 mv libdisplay-info-* libdisplay-info
+rmdir dxbc-spirv
+mv dxbc-spirv-* dxbc-spirv
+
 
 %conf
 mkdir ../build
