@@ -72,6 +72,7 @@ cd subprojects
 rmdir libdisplay-info
 tar xf %{S:1}
 mv libdisplay-info-* libdisplay-info
+cd..
 rmdir dxbc-spirv
 mv dxbc-spirv-* dxbc-spirv
 
